@@ -1,0 +1,7 @@
+{
+  "name": "HeatGuard AI Dashboard",
+  "description": "AI-Based Heatwave Health Risk Prediction & Decision Support System",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
