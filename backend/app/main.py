@@ -10,10 +10,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import API_DESCRIPTION, API_TITLE, API_VERSION
-from app.routers import health, predict, forecast, districts
-from app.services.model_service import load_artifacts
-from app.utils.logging_utils import setup_logging
+from .config import API_DESCRIPTION, API_TITLE, API_VERSION
+from .routers import health, predict, forecast, districts
+from .services.model_service import load_artifacts
+from .utils.logging_utils import setup_logging
 
 # Setup logging
 setup_logging()
