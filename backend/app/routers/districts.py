@@ -151,6 +151,12 @@ async def get_districts_by_state(state: str = Query(..., min_length=2)):
     return [d for d in ALL_DISTRICTS if d.state.lower() == s]
 
 
+@router.get("/districts/states", response_model=List[str])
+async def get_states():
+    """Return a list of all available states."""
+    return sorted(list(set(d.state for d in ALL_DISTRICTS)))
+
+
 @router.get("/districts/search", response_model=List[DistrictMetadata])
 async def search_districts(q: str = Query(..., min_length=2)):
     results = await search_location_by_name(q)
