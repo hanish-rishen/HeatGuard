@@ -6,22 +6,22 @@ interface RiskBadgeProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
-const COLORS = {
-  [RiskLevel.LOW]: 'bg-green-100 text-green-800 border-green-200',
-  [RiskLevel.MODERATE]: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  [RiskLevel.HIGH]: 'bg-orange-100 text-orange-800 border-orange-200',
-  [RiskLevel.EXTREME]: 'bg-red-100 text-red-800 border-red-200 animate-pulse',
+const STYLES = {
+  [RiskLevel.LOW]: 'bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700',
+  [RiskLevel.MODERATE]: 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-700/50',
+  [RiskLevel.HIGH]: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-700/50',
+  [RiskLevel.EXTREME]: 'bg-red-500 text-white border-red-600 dark:bg-red-600 dark:text-white dark:border-red-500 shadow-sm shadow-red-500/20',
 };
 
 export const RiskBadge: React.FC<RiskBadgeProps> = ({ level, size = 'md' }) => {
   const sizeClasses = {
-    sm: 'text-xs px-2 py-0.5',
-    md: 'text-sm px-2.5 py-0.5',
-    lg: 'text-base px-3 py-1',
+    sm: 'text-[10px] px-1.5 py-0.5 uppercase tracking-wider',
+    md: 'text-xs px-2.5 py-1',
+    lg: 'text-sm px-3 py-1',
   };
 
   return (
-    <span className={`inline-flex items-center font-medium rounded-full border ${COLORS[level]} ${sizeClasses[size]}`}>
+    <span className={`inline-flex items-center font-bold rounded-lg border ${STYLES[level]} ${sizeClasses[size]}`}>
       {level}
     </span>
   );

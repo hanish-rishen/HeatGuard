@@ -9,10 +9,10 @@ from typing import List
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.schemas import Forecast5DaysResponse, ForecastDay
+from app.schemas import Forecast5DaysResponse, ForecastDay, ForecastLocation
 from app.services.weather_service import fetch_openweather_forecast, extract_daily_max_temps
 from app.services.date_utils import compute_day_of_year, compute_month
-from app.services.model_service import is_model_loaded, predict_risk
+from app.services.model_service import is_model_loaded, predict_risk_batch
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +56,9 @@ async def forecast_5days(
         logger.info(f"Fetching 5-day forecast for lat={lat}, lon={lon}")
         openweather_json = await fetch_openweather_forecast(lat, lon)
 
+        # Extract location name if available
+        city_name = openweather_json.get("city", {}).get("name", "Unknown Location")
+
         # Extract daily max temperatures
         daily_temps = extract_daily_max_temps(openweather_json)
 
@@ -65,15 +68,12 @@ async def forecast_5days(
                 detail="No forecast data available from OpenWeather"
             )
 
-        # Run risk prediction for each day
-        days_list: List[ForecastDay] = []
-
+        # Prepare features for batch prediction
+        features_list = []
         for day_data in daily_temps:
             forecast_date = day_data["date"]
             tmax_c = day_data["tmax_c"]
-            humidity = day_data.get("humidity", 0)
 
-            # Build features for the model
             features = {
                 "tmax_c": tmax_c,
                 "day_of_year": compute_day_of_year(forecast_date),
@@ -81,35 +81,38 @@ async def forecast_5days(
                 "lat": lat,
                 "lon": lon,
             }
+            features_list.append(features)
 
-            # Get risk prediction
-            result = predict_risk(features)
+        # Run batch risk prediction
+        risk_results = predict_risk_batch(features_list)
 
-            # Create ForecastDay object
+        # Build response
+        forecast_days: List[ForecastDay] = []
+        for i, day_data in enumerate(daily_temps):
+            risk_data = risk_results[i]
+
             forecast_day = ForecastDay(
-                date=forecast_date,
-                tmax_c=tmax_c,
-                humidity=humidity,
-                risk_label=result["risk_label"],
-                risk_level=result["risk_level"],
-                probabilities=result.get("probabilities")
+                date=day_data["date"],
+                tmax_c=day_data["tmax_c"],
+                humidity=day_data.get("humidity"),
+                risk_label=risk_data["risk_label"],
+                risk_level=risk_data["risk_level"],
+                probabilities=risk_data.get("probabilities")
             )
-            days_list.append(forecast_day)
+            forecast_days.append(forecast_day)
 
-        logger.info(f"Successfully generated {len(days_list)} day forecast for lat={lat}, lon={lon}")
+        logger.info(f"Successfully generated {len(forecast_days)} day forecast for lat={lat}, lon={lon}")
 
         return Forecast5DaysResponse(
-            lat=lat,
-            lon=lon,
-            days=days_list
+            location=ForecastLocation(lat=lat, lon=lon, name=city_name),
+            forecast=forecast_days
         )
 
     except HTTPException:
-        # Re-raise HTTP exceptions as-is
         raise
     except Exception as e:
-        logger.error(f"Error generating forecast: {e}")
+        logger.error(f"Error generating forecast: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail="Internal server error while generating forecast"
+            detail=f"Internal server error: {str(e)}"
         )

@@ -5,11 +5,16 @@ export enum RiskLevel {
   EXTREME = 'Extreme'
 }
 
+export type RiskLevelString = "Green" | "Yellow" | "Orange" | "Red";
+
 export interface WeatherForecast {
   day: string;
   temp: number;
   humidity: number;
   heatIndex: number;
+  hri: number; // Heat Risk Index
+  risk_label?: number; // 0-3
+  risk_level?: RiskLevelString;
 }
 
 export interface VulnerabilityMetrics {
@@ -23,6 +28,7 @@ export interface District {
   name: string;
   currentTemp: number;
   currentHumidity: number;
+  currentHri: number; // Added HRI
   riskLevel: RiskLevel;
   forecast: WeatherForecast[];
   vulnerability: VulnerabilityMetrics;

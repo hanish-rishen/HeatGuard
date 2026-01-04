@@ -78,7 +78,7 @@ def is_model_loaded() -> bool:
 
 def predict_risk(features: Dict[str, float]) -> Dict[str, Any]:
     """
-    Predict heat risk for given features.
+    Predict heat risk for given features (single instance).
 
     Args:
         features: Dictionary with keys matching FEATURE_COLUMNS.
@@ -136,3 +136,63 @@ def predict_risk(features: Dict[str, float]) -> Dict[str, Any]:
         "risk_level": risk_level,
         "probabilities": probabilities
     }
+
+
+def predict_risk_batch(features_list: List[Dict[str, float]]) -> List[Dict[str, Any]]:
+    """
+    Predict heat risk for a batch of feature sets.
+
+    Args:
+        features_list: List of dictionaries, each with keys matching FEATURE_COLUMNS.
+
+    Returns:
+        List of dictionaries containing risk_label, risk_level, and probabilities for each input.
+    """
+    if not is_model_loaded():
+        raise ValueError("Model artifacts not loaded. Call load_artifacts() first.")
+
+    if not features_list:
+        return []
+
+    # Convert list of dicts to DataFrame
+    df = pd.DataFrame(features_list)
+
+    # Handle missing columns
+    missing_cols = [col for col in FEATURE_COLUMNS if col not in df.columns]
+    if missing_cols:
+        logger.warning(f"Batch prediction missing columns (defaulting to 0): {missing_cols}")
+        for col in missing_cols:
+            df[col] = 0.0
+
+    # Ensure correct column order
+    df = df[FEATURE_COLUMNS]
+
+    # Scale features
+    X_scaled = SCALER.transform(df)
+
+    # Get predictions
+    risk_labels = MODEL.predict(X_scaled)
+
+    # Get probabilities if available
+    all_probabilities = []
+    if hasattr(MODEL, 'predict_proba'):
+        try:
+            probas = MODEL.predict_proba(X_scaled)
+            for p in probas:
+                all_probabilities.append({str(i): float(val) for i, val in enumerate(p)})
+        except Exception as e:
+            logger.warning(f"Could not get batch prediction probabilities: {e}")
+            all_probabilities = [None] * len(features_list)
+    else:
+        all_probabilities = [None] * len(features_list)
+
+    results = []
+    for i, label in enumerate(risk_labels):
+        label_int = int(label)
+        results.append({
+            "risk_label": label_int,
+            "risk_level": get_risk_level(label_int),
+            "probabilities": all_probabilities[i]
+        })
+
+    return results

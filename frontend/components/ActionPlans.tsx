@@ -3,7 +3,11 @@ import { AlertTriangle, CheckCircle, FileText, Megaphone, Printer, Share2 } from
 import { HEAT_ACTION_PLANS } from '../constants';
 import { RiskLevel } from '../types';
 
-export const ActionPlans: React.FC = () => {
+interface ActionPlansProps {
+  isDarkMode?: boolean;
+}
+
+export const ActionPlans: React.FC<ActionPlansProps> = ({ isDarkMode }) => {
   const [activeTab, setActiveTab] = useState<RiskLevel>(RiskLevel.EXTREME);
   const [broadcastStatus, setBroadcastStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
 
@@ -16,103 +20,104 @@ export const ActionPlans: React.FC = () => {
   };
 
   const tabs = [
-    { id: RiskLevel.EXTREME, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', active: 'bg-red-100 text-red-800 ring-2 ring-red-500' },
-    { id: RiskLevel.HIGH, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200', active: 'bg-orange-100 text-orange-800 ring-2 ring-orange-500' },
-    { id: RiskLevel.MODERATE, color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-200', active: 'bg-yellow-100 text-yellow-800 ring-2 ring-yellow-500' },
-    { id: RiskLevel.LOW, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', active: 'bg-green-100 text-green-800 ring-2 ring-green-500' },
+    { id: RiskLevel.EXTREME, color: 'red', label: 'Extreme' },
+    { id: RiskLevel.HIGH, color: 'orange', label: 'High' },
+    { id: RiskLevel.MODERATE, color: 'yellow', label: 'Moderate' },
+    { id: RiskLevel.LOW, color: 'emerald', label: 'Low' },
   ];
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="h-full flex flex-col gap-6 animate-in fade-in duration-500">
+      <div className="flex justify-between items-center shrink-0">
         <div>
-           <h2 className="text-xl font-bold text-slate-800">Standard Operating Procedures</h2>
-           <p className="text-slate-500">Heat Action Plan (HAP) protocols by risk level.</p>
+           <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Action Protocols</h2>
+           <p className="text-zinc-500 text-sm">Standard Operating Procedures (SOPs)</p>
         </div>
         <div className="flex gap-2">
-            <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium">
-                <Printer size={16} /> Print Protocols
+            <button className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-sm font-bold">
+                <Printer size={16} /> Print
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium shadow-sm">
-                <Share2 size={16} /> Share with Depts
+            <button className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-bold shadow-lg shadow-red-500/20">
+                <Share2 size={16} /> Share
             </button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`p-4 rounded-xl border transition-all duration-200 text-left relative overflow-hidden ${
-              activeTab === tab.id ? tab.active + ' border-transparent' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-            }`}
-          >
-            <div className="font-bold mb-1">{tab.id} Risk</div>
-            <div className="text-xs opacity-80">Protocol Level {tab.id === RiskLevel.EXTREME ? '4' : tab.id === RiskLevel.HIGH ? '3' : tab.id === RiskLevel.MODERATE ? '2' : '1'}</div>
-            {activeTab === tab.id && (
-                <div className="absolute top-2 right-2">
-                    <CheckCircle size={16} className="opacity-50" />
-                </div>
-            )}
-          </button>
-        ))}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
+        {tabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            let activeClass = '';
+            if (isActive) {
+                if (tab.id === RiskLevel.EXTREME) activeClass = 'bg-red-600 text-white border-red-600 shadow-lg shadow-red-500/30';
+                else if (tab.id === RiskLevel.HIGH) activeClass = 'bg-orange-500 text-white border-orange-500';
+                else if (tab.id === RiskLevel.MODERATE) activeClass = 'bg-yellow-500 text-white border-yellow-500';
+                else activeClass = 'bg-emerald-600 text-white border-emerald-600';
+            } else {
+                activeClass = 'bg-white dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700';
+            }
+
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`p-4 rounded-xl border transition-all duration-200 text-left relative overflow-hidden group ${activeClass}`}
+              >
+                <div className="font-black text-lg mb-0.5 tracking-tight">{tab.label}</div>
+                <div className={`text-xs font-medium uppercase tracking-widest ${isActive ? 'opacity-80' : 'opacity-60'}`}>Level {tab.id === RiskLevel.EXTREME ? '4' : tab.id === RiskLevel.HIGH ? '3' : tab.id === RiskLevel.MODERATE ? '2' : '1'}</div>
+                {isActive && (
+                    <div className="absolute top-4 right-4 animate-in zoom-in">
+                        <CheckCircle size={20} />
+                    </div>
+                )}
+              </button>
+            );
+        })}
       </div>
 
       {/* Content */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-            <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                <FileText size={20} className="text-slate-500" />
-                {activeTab} Risk Action Plan
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden flex-1 flex flex-col min-h-0">
+        <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center bg-zinc-50/50 dark:bg-zinc-900/50">
+            <h3 className="font-bold text-lg text-zinc-900 dark:text-white flex items-center gap-2">
+                <FileText size={20} className="text-zinc-400" />
+                {activeTab} Risk Plan
             </h3>
             { (activeTab === RiskLevel.EXTREME || activeTab === RiskLevel.HIGH) && (
                 <button 
                     onClick={handleBroadcast}
                     disabled={broadcastStatus !== 'idle'}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white transition-all shadow-md ${
-                        broadcastStatus === 'sent' ? 'bg-green-600' : 'bg-red-600 hover:bg-red-700'
+                    className={`flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold text-white transition-all shadow-md ${
+                        broadcastStatus === 'sent' ? 'bg-green-600' : 'bg-red-600 hover:bg-red-700 hover:shadow-red-500/30'
                     }`}
                 >
-                    {broadcastStatus === 'idle' && <><Megaphone size={16} /> Broadcast Alert</>}
-                    {broadcastStatus === 'sending' && "Broadcasting..."}
-                    {broadcastStatus === 'sent' && <><CheckCircle size={16} /> Alert Sent</>}
+                    {broadcastStatus === 'idle' && <><Megaphone size={16} /> Broadcast System Alert</>}
+                    {broadcastStatus === 'sending' && "Transmitting..."}
+                    {broadcastStatus === 'sent' && <><CheckCircle size={16} /> Sent Successfully</>}
                 </button>
             )}
         </div>
         
-        <div className="p-0">
+        <div className="overflow-y-auto p-0">
             {HEAT_ACTION_PLANS[activeTab].map((action, index) => (
-                <div key={index} className="flex gap-4 p-6 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors group">
+                <div key={index} className="flex gap-5 p-6 border-b border-zinc-100 dark:border-zinc-800 last:border-0 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group items-start">
                     <div className={`
-                        w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-sm
-                        ${activeTab === RiskLevel.EXTREME ? 'bg-red-100 text-red-600' : 
-                          activeTab === RiskLevel.HIGH ? 'bg-orange-100 text-orange-600' :
-                          activeTab === RiskLevel.MODERATE ? 'bg-yellow-100 text-yellow-600' :
-                          'bg-green-100 text-green-600'
+                        w-8 h-8 rounded-lg flex items-center justify-center shrink-0 font-bold text-sm mt-0.5
+                        ${activeTab === RiskLevel.EXTREME ? 'bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400' : 
+                          activeTab === RiskLevel.HIGH ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/50 dark:text-orange-400' :
+                          activeTab === RiskLevel.MODERATE ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/50 dark:text-yellow-400' :
+                          'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400'
                         }
                     `}>
                         {index + 1}
                     </div>
-                    <div>
-                        <p className="text-slate-800 font-medium text-lg mb-1">{action}</p>
-                        <p className="text-slate-500 text-sm">
-                            Assigned to: <span className="font-semibold text-slate-600">District Collectors, Health Officers</span>
+                    <div className="flex-1">
+                        <p className="text-zinc-800 dark:text-zinc-200 font-medium text-lg mb-1 leading-snug">{action}</p>
+                        <p className="text-zinc-500 text-sm">
+                            Assigned to: <span className="font-semibold text-zinc-600 dark:text-zinc-400">District Collectors, Health Officers</span>
                         </p>
-                    </div>
-                    <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity self-center">
-                         <button className="text-xs font-medium text-indigo-600 border border-indigo-200 bg-indigo-50 px-3 py-1 rounded hover:bg-indigo-100">
-                            View Details
-                         </button>
                     </div>
                 </div>
             ))}
-        </div>
-
-        <div className="bg-slate-50 p-6 text-center border-t border-slate-100">
-             <p className="text-sm text-slate-500 mb-2">Need to update these protocols?</p>
-             <button className="text-indigo-600 font-medium text-sm hover:underline">Request Protocol Revision (Admin only)</button>
         </div>
       </div>
     </div>

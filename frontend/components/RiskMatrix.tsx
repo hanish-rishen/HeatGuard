@@ -1,122 +1,151 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { District, RiskLevel } from '../types';
 
 interface RiskMatrixProps {
   data: District[];
   onSelectDistrict: (d: District) => void;
+  isDarkMode?: boolean;
 }
 
-export const RiskMatrix: React.FC<RiskMatrixProps> = ({ data, onSelectDistrict }) => {
+export const RiskMatrix: React.FC<RiskMatrixProps> = ({ data, onSelectDistrict, isDarkMode = false }) => {
   const svgRef = useRef<SVGSVGElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
-    if (!svgRef.current) return;
+    const handleResize = () => {
+      if (svgRef.current?.parentElement) {
+        setDimensions({
+          width: svgRef.current.parentElement.clientWidth,
+          height: svgRef.current.parentElement.clientHeight
+        });
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (!svgRef.current || dimensions.width === 0 || dimensions.height === 0) return;
 
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
-    const width = svgRef.current.clientWidth;
-    const height = 400;
-    const margin = { top: 20, right: 30, bottom: 40, left: 50 };
+    const { width, height } = dimensions;
+    const margin = { top: 20, right: 20, bottom: 30, left: 40 };
 
     const x = d3.scaleLinear()
       .domain([20, 100]) // Humidity
       .range([margin.left, width - margin.right]);
 
     const y = d3.scaleLinear()
-      .domain([20, 50]) // Temperature
+      .domain([0, 10]) // HRI
       .range([height - margin.bottom, margin.top]);
 
-    // Draw Risk Zones (Simplified Heat Index approximation background)
+    // Background Grid
+    // We will use distinct colors for quadrants instead of a gradient for clearer "Black/Red/Yellow" feel
     const defs = svg.append("defs");
-    const gradient = defs.append("linearGradient")
-      .attr("id", "heat-gradient")
-      .attr("x1", "0%")
-      .attr("y1", "100%")
-      .attr("x2", "100%")
-      .attr("y2", "0%");
 
-    gradient.append("stop").attr("offset", "0%").attr("stop-color", "#dcfce7"); // Green
-    gradient.append("stop").attr("offset", "40%").attr("stop-color", "#fef9c3"); // Yellow
-    gradient.append("stop").attr("offset", "70%").attr("stop-color", "#ffedd5"); // Orange
-    gradient.append("stop").attr("offset", "100%").attr("stop-color", "#fee2e2"); // Red
-
-    svg.append("rect")
-      .attr("x", margin.left)
-      .attr("y", margin.top)
-      .attr("width", width - margin.left - margin.right)
-      .attr("height", height - margin.top - margin.bottom)
-      .style("fill", "url(#heat-gradient)")
-      .style("opacity", 0.3);
+    // Axis colors based on theme
+    const axisColor = isDarkMode ? "#52525b" : "#e4e4e7"; // Zinc 600 / Zinc 200
+    const textColor = isDarkMode ? "#a1a1aa" : "#71717a";
 
     // X Axis
     svg.append("g")
       .attr("transform", `translate(0,${height - margin.bottom})`)
-      .call(d3.axisBottom(x))
-      .call(g => g.append("text")
+      .call(d3.axisBottom(x).tickSize(-height + margin.top + margin.bottom).ticks(5))
+      .attr("color", axisColor)
+      .call(g => {
+         g.select(".domain").remove();
+         g.selectAll(".tick line").attr("stroke-opacity", 0.5);
+         g.selectAll("text").attr("fill", textColor).attr("font-size", "10px");
+      });
+
+    // Label X
+    svg.append("text")
         .attr("x", width - margin.right)
-        .attr("y", 35)
-        .attr("fill", "currentColor")
+        .attr("y", height - 5)
+        .attr("fill", textColor)
         .attr("text-anchor", "end")
-        .text("Humidity (%)"));
+        .attr("font-size", "10px")
+        .attr("font-weight", "bold")
+        .text("Humidity (%)");
 
     // Y Axis
     svg.append("g")
       .attr("transform", `translate(${margin.left},0)`)
-      .call(d3.axisLeft(y))
-      .call(g => g.append("text")
-        .attr("x", -margin.left)
-        .attr("y", 10)
-        .attr("fill", "currentColor")
+      .call(d3.axisLeft(y).tickSize(-width + margin.left + margin.right).ticks(5))
+      .attr("color", axisColor)
+      .call(g => {
+         g.select(".domain").remove();
+         g.selectAll(".tick line").attr("stroke-opacity", 0.5);
+         g.selectAll("text").attr("fill", textColor).attr("font-size", "10px");
+      });
+
+    // Label Y
+    svg.append("text")
+        .attr("x", margin.left)
+        .attr("y", 12)
+        .attr("fill", textColor)
         .attr("text-anchor", "start")
-        .text("Temperature (°C)"));
+        .attr("font-size", "10px")
+        .attr("font-weight", "bold")
+        .text("HRI");
 
     // Plot Districts
-    svg.selectAll("circle")
+    const circles = svg.selectAll("circle")
       .data(data)
       .enter()
       .append("circle")
       .attr("cx", d => x(d.currentHumidity))
-      .attr("cy", d => y(d.currentTemp))
-      .attr("r", 8)
+      .attr("cy", d => y(d.currentHri))
+      .attr("r", 6)
       .attr("fill", d => {
-        if (d.riskLevel === RiskLevel.EXTREME) return "#dc2626";
-        if (d.riskLevel === RiskLevel.HIGH) return "#ea580c";
-        if (d.riskLevel === RiskLevel.MODERATE) return "#ca8a04";
-        return "#16a34a";
+        if (d.riskLevel === RiskLevel.EXTREME) return "#ef4444"; // Red 500
+        if (d.riskLevel === RiskLevel.HIGH) return "#f97316"; // Orange 500
+        if (d.riskLevel === RiskLevel.MODERATE) return "#eab308"; // Yellow 500
+        return isDarkMode ? "#3f3f46" : "#e4e4e7"; // Zinc 700 / Zinc 200
       })
-      .attr("stroke", "white")
+      .attr("stroke", isDarkMode ? "#000" : "#fff")
       .attr("stroke-width", 2)
       .style("cursor", "pointer")
+      .style("transition", "all 0.2s ease");
+
+    // Interaction
+    circles
       .on("mouseover", function(event, d) {
-        d3.select(this).attr("r", 12).attr("stroke", "#333");
-        // Simple tooltip via title for mobile compatibility
+        d3.select(this)
+          .attr("r", 10)
+          .attr("stroke", isDarkMode ? "#fff" : "#000");
+
+        // Tooltip label
         svg.append("text")
-           .attr("id", "tooltip")
+           .attr("id", "tooltip-text")
            .attr("x", x(d.currentHumidity))
-           .attr("y", y(d.currentTemp) - 15)
+           .attr("y", y(d.currentHri) - 15)
            .attr("text-anchor", "middle")
            .attr("font-size", "12px")
            .attr("font-weight", "bold")
-           .attr("fill", "#1e293b")
+           .attr("fill", isDarkMode ? "#fff" : "#09090b")
+           .style("pointer-events", "none") // Prevent tooltip from capturing mouse events
            .text(d.name);
       })
       .on("mouseout", function() {
-        d3.select(this).attr("r", 8).attr("stroke", "white");
-        svg.select("#tooltip").remove();
+        d3.select(this)
+          .attr("r", 6)
+          .attr("stroke", isDarkMode ? "#000" : "#fff");
+        svg.select("#tooltip-text").remove();
       })
       .on("click", (event, d) => onSelectDistrict(d));
 
-  }, [data, onSelectDistrict]);
+  }, [data, onSelectDistrict, isDarkMode, dimensions]);
 
   return (
-    <div className="w-full bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-      <h3 className="text-lg font-semibold text-slate-800 mb-2">Risk Distribution Matrix</h3>
-      <p className="text-sm text-slate-500 mb-4">Visualizing relationship between temperature, humidity, and risk.</p>
-      <div className="w-full overflow-hidden">
-        <svg ref={svgRef} className="w-full h-[400px]" />
-      </div>
+    <div className="w-full h-full min-h-[200px]">
+       <svg ref={svgRef} className="w-full h-full" />
     </div>
   );
 };

@@ -49,19 +49,25 @@ class HealthResponse(BaseModel):
 # Forecast Endpoint Schemas
 # =============================================================================
 
+class ForecastLocation(BaseModel):
+    """Location details for the forecast."""
+    lat: float
+    lon: float
+    name: Optional[str] = None
+
+
 class ForecastDay(BaseModel):
     """Single day forecast with risk prediction."""
     date: datetime.date
     tmax_c: float
-    humidity: float
     risk_label: int
     risk_level: str
+    humidity: Optional[float] = None
     probabilities: Optional[Dict[str, float]] = None
 
 
 class Forecast5DaysResponse(BaseModel):
     """Response model for 5-day forecast with risk predictions."""
-    lat: float
-    lon: float
-    days: List[ForecastDay]
+    location: ForecastLocation
+    forecast: List[ForecastDay]
 

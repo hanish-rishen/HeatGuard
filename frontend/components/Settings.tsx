@@ -1,67 +1,71 @@
 import React from 'react';
 import { Bell, User, Shield, Thermometer, Save } from 'lucide-react';
 
-export const Settings: React.FC = () => {
+interface SettingsProps {
+  isDarkMode?: boolean;
+}
+
+export const Settings: React.FC<SettingsProps> = ({ isDarkMode }) => {
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500">
+    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500 pb-10">
       <div className="flex justify-between items-center">
         <div>
-           <h2 className="text-xl font-bold text-slate-800">Settings</h2>
-           <p className="text-slate-500">Manage your profile and system configurations.</p>
+           <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Settings</h2>
+           <p className="text-zinc-500 text-sm">System configuration.</p>
         </div>
-        <button className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm">
+        <button className="flex items-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-black px-6 py-2 rounded-lg font-bold hover:opacity-90 transition-opacity shadow-sm">
             <Save size={18} /> Save Changes
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800 overflow-hidden">
         {/* Profile Section */}
-        <div className="p-6 border-b border-slate-100">
-           <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-             <User size={20} className="text-indigo-600"/> Profile Information
+        <div className="p-6 border-b border-zinc-100 dark:border-zinc-800">
+           <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-6 flex items-center gap-2">
+             <User size={20} className="text-zinc-400"/> Profile
            </h3>
            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
              <div>
-               <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
-               <input type="text" defaultValue="John Doe" className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+               <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Full Name</label>
+               <input type="text" defaultValue="John Doe" className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none dark:text-white font-medium" />
              </div>
              <div>
-               <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
-               <input type="email" defaultValue="john.doe@health.tn.gov.in" className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+               <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Email Address</label>
+               <input type="email" defaultValue="john.doe@health.tn.gov.in" className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none dark:text-white font-medium" />
              </div>
              <div>
-               <label className="block text-sm font-medium text-slate-700 mb-1">Department</label>
-               <select className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+               <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Department</label>
+               <select className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none text-zinc-900 dark:text-white font-medium">
                  <option>Public Health</option>
                  <option>Disaster Management</option>
                  <option>Municipal Administration</option>
                </select>
              </div>
              <div>
-               <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
-               <input type="text" defaultValue="Health Officer" disabled className="w-full px-4 py-2 border border-slate-200 bg-slate-50 text-slate-500 rounded-lg" />
+               <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Role</label>
+               <input type="text" defaultValue="Health Officer" disabled className="w-full px-4 py-3 bg-zinc-100 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 text-zinc-400 rounded-xl font-medium cursor-not-allowed" />
              </div>
            </div>
         </div>
 
         {/* Notifications */}
-        <div className="p-6 border-b border-slate-100">
-           <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-             <Bell size={20} className="text-indigo-600"/> Notification Preferences
+        <div className="p-6 border-b border-zinc-100 dark:border-zinc-800">
+           <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-6 flex items-center gap-2">
+             <Bell size={20} className="text-zinc-400"/> Notifications
            </h3>
            <div className="space-y-4">
-             <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer">
-               <input type="checkbox" defaultChecked className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300" />
+             <label className="flex items-center gap-4 p-4 border border-zinc-200 dark:border-zinc-800 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer transition-colors">
+               <input type="checkbox" defaultChecked className="w-5 h-5 text-red-600 rounded focus:ring-red-500 border-zinc-300 dark:border-zinc-600" />
                <div>
-                 <p className="font-medium text-slate-800">Email Alerts</p>
-                 <p className="text-sm text-slate-500">Receive daily summary reports and red alert notifications.</p>
+                 <p className="font-bold text-zinc-900 dark:text-white">Email Alerts</p>
+                 <p className="text-sm text-zinc-500">Receive daily summary reports and red alert notifications.</p>
                </div>
              </label>
-             <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer">
-               <input type="checkbox" defaultChecked className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300" />
+             <label className="flex items-center gap-4 p-4 border border-zinc-200 dark:border-zinc-800 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer transition-colors">
+               <input type="checkbox" defaultChecked className="w-5 h-5 text-red-600 rounded focus:ring-red-500 border-zinc-300 dark:border-zinc-600" />
                <div>
-                 <p className="font-medium text-slate-800">SMS Alerts</p>
-                 <p className="text-sm text-slate-500">Get instant SMS for Extreme Risk protocol activation.</p>
+                 <p className="font-bold text-zinc-900 dark:text-white">SMS Alerts</p>
+                 <p className="text-sm text-zinc-500">Get instant SMS for Extreme Risk protocol activation.</p>
                </div>
              </label>
            </div>
@@ -69,34 +73,34 @@ export const Settings: React.FC = () => {
 
         {/* Threshold Configuration */}
         <div className="p-6">
-           <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-             <Thermometer size={20} className="text-indigo-600"/> Threshold Configuration (Global)
+           <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-6 flex items-center gap-2">
+             <Thermometer size={20} className="text-zinc-400"/> Thresholds
            </h3>
-           <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-6 text-sm text-yellow-800 flex items-start gap-3">
+           <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-900/50 p-4 rounded-xl mb-8 text-sm text-yellow-800 dark:text-yellow-400 flex items-start gap-3 font-medium">
              <Shield className="shrink-0 mt-0.5" size={16}/>
              <p>Changing these thresholds will affect the risk calculation algorithm for all districts. Only proceed if authorized.</p>
            </div>
            
-           <div className="space-y-6">
+           <div className="space-y-8">
               <div>
-                <div className="flex justify-between mb-2">
-                  <label className="font-medium text-slate-700">Extreme Risk Temperature Threshold</label>
-                  <span className="font-bold text-indigo-600">40°C</span>
+                <div className="flex justify-between mb-3">
+                  <label className="font-bold text-zinc-700 dark:text-zinc-300">Extreme Risk Temperature Threshold</label>
+                  <span className="font-black text-red-500 text-lg">40°C</span>
                 </div>
-                <input type="range" min="35" max="45" defaultValue="40" className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
-                <div className="flex justify-between text-xs text-slate-400 mt-1">
+                <input type="range" min="35" max="45" defaultValue="40" className="w-full h-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-red-500" />
+                <div className="flex justify-between text-xs text-zinc-400 mt-2 font-mono">
                   <span>35°C</span>
                   <span>45°C</span>
                 </div>
               </div>
 
               <div>
-                <div className="flex justify-between mb-2">
-                  <label className="font-medium text-slate-700">High Humidity Penalty Threshold</label>
-                  <span className="font-bold text-indigo-600">70%</span>
+                <div className="flex justify-between mb-3">
+                  <label className="font-bold text-zinc-700 dark:text-zinc-300">High Humidity Penalty Threshold</label>
+                  <span className="font-black text-yellow-500 text-lg">70%</span>
                 </div>
-                <input type="range" min="50" max="90" defaultValue="70" className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
-                 <div className="flex justify-between text-xs text-slate-400 mt-1">
+                <input type="range" min="50" max="90" defaultValue="70" className="w-full h-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-yellow-500" />
+                 <div className="flex justify-between text-xs text-zinc-400 mt-2 font-mono">
                   <span>50%</span>
                   <span>90%</span>
                 </div>

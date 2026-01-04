@@ -4,13 +4,16 @@ Districts Router for HeatGuard API
 Provides endpoints for district metadata and configuration.
 """
 
-from typing import List
-
-from fastapi import APIRouter, Query, HTTPException
-from pydantic import BaseModel
-from app.services.weather_service import search_location_by_name
+import json
+import hashlib
 import uuid
-import random
+from pathlib import Path
+from typing import List, Dict, Optional
+
+from fastapi import APIRouter, Query
+from pydantic import BaseModel
+
+from app.services.weather_service import search_location_by_name
 
 router = APIRouter()
 
@@ -24,169 +27,170 @@ class VulnerabilityMetrics(BaseModel):
 class DistrictMetadata(BaseModel):
     id: str
     name: str
-    coordinates: List[float]
+    state: str
+    coordinates: List[float]  # [lat, lon]
+    population: int | None = None
+    area: int | None = None
+    density: int | None = None
     vulnerability: VulnerabilityMetrics
 
 
-# Static district data (moved from frontend)
-# Expanded to include major cities across India
-DISTRICTS_DATA = [
-    {
-        "id": "d1",
-        "name": "Chennai",
-        "coordinates": [13.0827, 80.2707],
-        "vulnerability": {"elderlyPopulation": 12, "outdoorWorkers": 25, "slumPopulation": 28}
-    },
-    {
-        "id": "d2",
-        "name": "Madurai",
-        "coordinates": [9.9252, 78.1198],
-        "vulnerability": {"elderlyPopulation": 10, "outdoorWorkers": 40, "slumPopulation": 15}
-    },
-    {
-        "id": "d3",
-        "name": "Coimbatore",
-        "coordinates": [11.0168, 76.9558],
-        "vulnerability": {"elderlyPopulation": 14, "outdoorWorkers": 20, "slumPopulation": 10}
-    },
-    {
-        "id": "d4",
-        "name": "New Delhi",
-        "coordinates": [28.6139, 77.2090],
-        "vulnerability": {"elderlyPopulation": 8, "outdoorWorkers": 30, "slumPopulation": 20}
-    },
-    {
-        "id": "d5",
-        "name": "Mumbai",
-        "coordinates": [19.0760, 72.8777],
-        "vulnerability": {"elderlyPopulation": 11, "outdoorWorkers": 22, "slumPopulation": 40}
-    },
-    {
-        "id": "d6",
-        "name": "Kolkata",
-        "coordinates": [22.5726, 88.3639],
-        "vulnerability": {"elderlyPopulation": 13, "outdoorWorkers": 28, "slumPopulation": 30}
-    },
-    {
-        "id": "d7",
-        "name": "Bengaluru",
-        "coordinates": [12.9716, 77.5946],
-        "vulnerability": {"elderlyPopulation": 9, "outdoorWorkers": 18, "slumPopulation": 15}
-    },
-    {
-        "id": "d8",
-        "name": "Hyderabad",
-        "coordinates": [17.3850, 78.4867],
-        "vulnerability": {"elderlyPopulation": 10, "outdoorWorkers": 25, "slumPopulation": 22}
-    },
-    {
-        "id": "d9",
-        "name": "Ahmedabad",
-        "coordinates": [23.0225, 72.5714],
-        "vulnerability": {"elderlyPopulation": 11, "outdoorWorkers": 35, "slumPopulation": 18}
-    },
-    {
-        "id": "d10",
-        "name": "Jaipur",
-        "coordinates": [26.9124, 75.7873],
-        "vulnerability": {"elderlyPopulation": 12, "outdoorWorkers": 32, "slumPopulation": 25}
-    },
-    {
-        "id": "d11",
-        "name": "Lucknow",
-        "coordinates": [26.8467, 80.9462],
-        "vulnerability": {"elderlyPopulation": 10, "outdoorWorkers": 38, "slumPopulation": 20}
-    },
-    {
-        "id": "d12",
-        "name": "Patna",
-        "coordinates": [25.5941, 85.1376],
-        "vulnerability": {"elderlyPopulation": 9, "outdoorWorkers": 45, "slumPopulation": 28}
-    },
-    {
-        "id": "d13",
-        "name": "Bhopal",
-        "coordinates": [23.2599, 77.4126],
-        "vulnerability": {"elderlyPopulation": 11, "outdoorWorkers": 30, "slumPopulation": 22}
-    },
-    {
-        "id": "d14",
-        "name": "Chandigarh",
-        "coordinates": [30.7333, 76.7794],
-        "vulnerability": {"elderlyPopulation": 14, "outdoorWorkers": 15, "slumPopulation": 10}
-    },
-    {
-        "id": "d15",
-        "name": "Srinagar",
-        "coordinates": [34.0837, 74.7973],
-        "vulnerability": {"elderlyPopulation": 12, "outdoorWorkers": 20, "slumPopulation": 5}
-    },
-    {
-        "id": "d16",
-        "name": "Thiruvananthapuram",
-        "coordinates": [8.5241, 76.9366],
-        "vulnerability": {"elderlyPopulation": 16, "outdoorWorkers": 25, "slumPopulation": 12}
-    },
-    {
-        "id": "d17",
-        "name": "Bhubaneswar",
-        "coordinates": [20.2961, 85.8245],
-        "vulnerability": {"elderlyPopulation": 11, "outdoorWorkers": 35, "slumPopulation": 25}
-    },
-    {
-        "id": "d18",
-        "name": "Guwahati",
-        "coordinates": [26.1445, 91.7362],
-        "vulnerability": {"elderlyPopulation": 10, "outdoorWorkers": 30, "slumPopulation": 15}
-    },
-    {
-        "id": "d19",
-        "name": "Nagpur",
-        "coordinates": [21.1458, 79.0882],
-        "vulnerability": {"elderlyPopulation": 12, "outdoorWorkers": 33, "slumPopulation": 20}
-    },
-    {
-        "id": "d20",
-        "name": "Visakhapatnam",
-        "coordinates": [17.6868, 83.2185],
-        "vulnerability": {"elderlyPopulation": 11, "outdoorWorkers": 28, "slumPopulation": 22}
-    }
-]
+# Locate the backend project root and load the two JSON files
+# backend/app/routers/districts.py -> parents[0]=routers, [1]=app, [2]=backend
+BASE_DIR = Path(__file__).resolve().parents[2]
+DISTRICTS_PATH = BASE_DIR / "data" / "districts.json"
+GEO_PATH = BASE_DIR / "data" / "District-Geocodes.json"
+
+ALL_DISTRICTS: List[DistrictMetadata] = []
+
+
+def norm(s: str) -> str:
+    return s.strip().lower() if s else ""
+
+
+def generate_vulnerability(state: str, district: str) -> VulnerabilityMetrics:
+    """Deterministic vulnerability generator so values are stable."""
+    key = f"{state}-{district}".encode("utf-8")
+    h = int(hashlib.sha256(key).hexdigest(), 16)
+    elderly = 8 + (h % 9)              # 8–16%
+    outdoor = 20 + ((h // 10) % 21)    # 20–40%
+    slum = 10 + ((h // 100) % 21)      # 10–30%
+    return VulnerabilityMetrics(
+        elderlyPopulation=float(elderly),
+        outdoorWorkers=float(outdoor),
+        slumPopulation=float(slum),
+    )
+
+
+def load_district_data():
+    """Load district data from JSON files."""
+    global ALL_DISTRICTS
+
+    if not DISTRICTS_PATH.exists() or not GEO_PATH.exists():
+        # Fallback or warning if files are missing
+        print(f"WARNING: District data files not found at {DISTRICTS_PATH} or {GEO_PATH}")
+        return
+
+    try:
+        with DISTRICTS_PATH.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+            # Handle structure: {"districts": [...]}
+            if isinstance(data, dict) and "districts" in data:
+                districts_raw = data["districts"]
+            else:
+                districts_raw = data
+
+        with GEO_PATH.open("r", encoding="utf-8") as f:
+            geo_raw = json.load(f)
+
+        # Build a lookup for geocodes keyed by a normalised district name
+        geo_index: Dict[str, Dict] = {}
+        for row in geo_raw:
+            # Inspect keys in District-Geocodes.json and adapt:
+            name = norm(row.get("district") or row.get("District") or row.get("name") or row.get("District_Name", ""))
+            if not name:
+                continue
+            geo_index[name] = row
+
+        # Build ALL_DISTRICTS by merging districts.json with geocodes
+        districts: List[DistrictMetadata] = []
+        for row in districts_raw:
+            state = row.get("state", "Unknown")
+            district_name = row.get("district", "Unknown")
+            pop = row.get("population")
+            area = row.get("area")
+            density = row.get("density")
+
+            geo_row = geo_index.get(norm(district_name))
+            if geo_row:
+                try:
+                    lat = float(geo_row.get("lat") or geo_row.get("latitude") or geo_row.get("Latitude") or 0)
+                    lon = float(geo_row.get("lon") or geo_row.get("longitude") or geo_row.get("Longitude") or 0)
+                except (ValueError, TypeError):
+                    lat, lon = 0.0, 0.0
+            else:
+                lat, lon = 0.0, 0.0  # fallback if no geocode found
+
+            vuln = generate_vulnerability(state, district_name)
+
+            # Generate ID
+            state_code = row.get('stateCode') or state[:2]
+            dist_code = row.get('districtCode') or district_name[:4]
+            dist_id = f"{state_code.lower()}_{dist_code.lower()}"
+
+            districts.append(DistrictMetadata(
+                id=dist_id,
+                name=district_name,
+                state=state,
+                coordinates=[lat, lon],
+                population=pop,
+                area=area,
+                density=density,
+                vulnerability=vuln,
+            ))
+
+        ALL_DISTRICTS = districts
+        print(f"Loaded {len(ALL_DISTRICTS)} districts.")
+
+    except Exception as e:
+        print(f"Error loading district data: {e}")
+
+
+# Load data on module import
+load_district_data()
 
 
 @router.get("/districts", response_model=List[DistrictMetadata])
 async def get_districts():
-    """
-    Get list of supported districts with their metadata.
-    """
-    return DISTRICTS_DATA
+    return ALL_DISTRICTS
+
+
+@router.get("/districts/by-state", response_model=List[DistrictMetadata])
+async def get_districts_by_state(state: str = Query(..., min_length=2)):
+    s = state.lower()
+    return [d for d in ALL_DISTRICTS if d.state.lower() == s]
 
 
 @router.get("/districts/search", response_model=List[DistrictMetadata])
 async def search_districts(q: str = Query(..., min_length=2)):
-    """
-    Search for districts/cities by name.
-    Returns a list of potential matches formatted as DistrictMetadata.
-    """
     results = await search_location_by_name(q)
+    districts: List[DistrictMetadata] = []
+    seen_district_ids = set()
 
-    districts = []
     for res in results:
-        # Filter for India if needed, but let's keep it open or prioritize IN
         if res.get("country") != "IN":
             continue
+        name = res.get("name")
+        state_name = res.get("state") or res.get("admin_name") or "Unknown"
+        coords = [res.get("lat"), res.get("lon")]
 
-        # Generate estimated vulnerability data since we don't have it for new cities
-        # In a real app, this would come from a database
-        districts.append({
-            "id": f"search_{uuid.uuid4().hex[:8]}",
-            "name": res.get("name"),
-            "coordinates": [res.get("lat"), res.get("lon")],
-            "vulnerability": {
-                "elderlyPopulation": round(random.uniform(8, 15), 1),
-                "outdoorWorkers": round(random.uniform(20, 40), 1),
-                "slumPopulation": round(random.uniform(10, 30), 1)
-            }
-        })
+        # Attempt to find existing district data to populate stats
+        match = next((d for d in ALL_DISTRICTS
+                      if norm(d.name) == norm(name) and norm(d.state) == norm(state_name)), None)
+
+        if match:
+            # Deduplicate: if we already have this district in the results, skip
+            if match.id in seen_district_ids:
+                continue
+            seen_district_ids.add(match.id)
+
+            pop = match.population
+            area = match.area
+            density = match.density
+
+            vuln = generate_vulnerability(state_name, name)
+            dist_id = f"search_{uuid.uuid4().hex[:8]}"
+            districts.append(DistrictMetadata(
+                id=dist_id,
+                name=match.name,
+                state=match.state,
+                coordinates=coords,
+                population=pop,
+                area=area,
+                density=density,
+                vulnerability=vuln,
+            ))
+        # Else: Skip results that don't match any known district in our database
+        # This filters out "hallucinated" or irrelevant locations from the geocoder (e.g. Karur, Maharashtra)
 
     return districts

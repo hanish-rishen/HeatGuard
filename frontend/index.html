@@ -5,26 +5,51 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HeatGuard AI</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['"Host Grotesk"', 'sans-serif'],
+            },
+            colors: {
+              brand: {
+                black: '#09090b', // Zinc 950
+                dark: '#18181b',  // Zinc 900
+                red: '#ef4444',
+                yellow: '#eab308',
+                accent: '#ef4444' // Primary Red
+              }
+            }
+          }
+        }
+      }
+    </script>
     <style>
       body {
-        font-family: 'Inter', sans-serif;
-        background-color: #f8fafc;
+        font-family: 'Host Grotesk', sans-serif;
       }
-      /* Custom Scrollbar for better aesthetics */
+      /* Custom Scrollbar */
       ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+        width: 6px;
+        height: 6px;
       }
       ::-webkit-scrollbar-track {
-        background: #f1f5f9; 
+        background: transparent; 
       }
       ::-webkit-scrollbar-thumb {
-        background: #cbd5e1; 
-        border-radius: 4px;
+        background: #a1a1aa; 
+        border-radius: 3px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8; 
+        background: #71717a; 
+      }
+      .dark ::-webkit-scrollbar-thumb {
+        background: #52525b;
       }
     </style>
   <script type="importmap">
