@@ -5,7 +5,7 @@ import {
 import {
   Thermometer, ShieldAlert, Users, FileText, ArrowRight, Activity, Map as MapIcon, Maximize2, ChevronDown, Info
 } from 'lucide-react';
-import { DISTRICTS_DATA, HEAT_ACTION_PLANS } from '../constants';
+import { HEAT_ACTION_PLANS } from '../constants';
 import { District, RiskLevel, WeatherForecast, VulnerabilityMetrics } from '../types';
 import { RiskBadge } from './RiskBadge';
 import { RiskMatrix } from './RiskMatrix';
@@ -168,62 +168,59 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAssistant, isDarkMod
       try {
         let forecastData: WeatherForecast[] = [];
 
-        // Check for simulated risk from the bulk list to ensure consistency in Demo Mode
-        const simulatedRisk = todayRisk[d.id];
-
-        if (simulatedRisk && simulatedRisk.tmax_c > 32) {
-             // Generate synthetic forecast to match the simulated list data
-             const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-             const todayIdx = new Date().getDay();
-
-             forecastData = Array.from({ length: 5 }).map((_, i) => {
-                 const date = new Date();
-                 date.setDate(date.getDate() + i);
-                 const dayName = days[(todayIdx + i) % 7];
-
-                 // Decay temp slightly each day to show a trend
-                 const temp = simulatedRisk.tmax_c - (i * 1.2);
-
-                 // Simple risk mapping for demo simulation
-                 let rLevel = 0;
-                 let rLabel: "Green" | "Yellow" | "Orange" | "Red" = "Green";
-
-                 if (temp > 40) { rLevel = 3; rLabel = "Red"; }
-                 else if (temp > 37) { rLevel = 2; rLabel = "Orange"; }
-                 else if (temp > 35) { rLevel = 1; rLabel = "Yellow"; }
-
-                 return {
-                    date: date.toISOString(),
-                    day: dayName,
-                    temp: Math.round(temp),
-                    humidity: 50,
-                    heatIndex: 0,
-                    hri: 0,
-                    risk_label: rLevel,
-                    risk_level: rLabel
-                 };
-             });
-        } else {
-            // Fetch real forecast from API
-            const res = await fetch(`/api/forecast/5days?lat=${d.coordinates[0]}&lon=${d.coordinates[1]}`);
-            if (res.ok) {
-                const data: any[] = await res.json();
-                if (data.length > 0) {
-                    forecastData = data.map(f => ({
-                        date: f.date,
-                        day: new Date(f.date).toLocaleDateString('en-US', { weekday: 'short' }),
-                        temp: f.tmax_c,
-                        humidity: f.humidity || 50, // Default if missing
-                        heatIndex: 0, // Not provided by backend yet
-                        hri: 0, // Not provided by backend yet
-                        risk_label: f.risk_label,
-                        risk_level: f.risk_level
-                    }));
-                }
-            } else {
-                // Fallback to mock if fail
-                forecastData = [];
+        // Fetch real forecast from API
+        const res = await fetch(`/api/forecast/5days?lat=${d.coordinates[0]}&lon=${d.coordinates[1]}`);
+        if (res.ok) {
+            const data: any[] = await res.json();
+            if (data.length > 0) {
+                forecastData = data.map(f => ({
+                    date: f.date,
+                    day: new Date(f.date).toLocaleDateString('en-US', { weekday: 'short' }),
+                    temp: f.tmax_c,
+                    humidity: f.humidity || 50, // Default if missing
+                    heatIndex: 0, // Not provided by backend yet
+                    hri: 0, // Not provided by backend yet
+                    risk_label: f.risk_label,
+                    risk_level: f.risk_level
+                }));
             }
+        }
+
+        // Fallback: If API failed or returned no data, generate trend from today's risk
+        // This ensures the UI is never empty and matches the list view's risk level.
+        if (forecastData.length === 0) {
+             const simulatedRisk = todayRisk[d.id];
+             if (simulatedRisk) {
+                 const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                 const todayIdx = new Date().getDay();
+
+                 forecastData = Array.from({ length: 5 }).map((_, i) => {
+                     const date = new Date();
+                     date.setDate(date.getDate() + i);
+                     const dayName = days[(todayIdx + i) % 7];
+
+                     // Use the simulated temp from todayRisk as base, with slight decay
+                     const temp = simulatedRisk.tmax_c - (i * 0.5);
+
+                     // Simple risk mapping to match the list view
+                     let rLevel = 0;
+                     let rLabel: "Green" | "Yellow" | "Orange" | "Red" = "Green";
+                     if (temp > 40) { rLevel = 3; rLabel = "Red"; }
+                     else if (temp > 37) { rLevel = 2; rLabel = "Orange"; }
+                     else if (temp > 35) { rLevel = 1; rLabel = "Yellow"; }
+
+                     return {
+                        date: date.toISOString(),
+                        day: dayName,
+                        temp: Math.round(temp),
+                        humidity: 50,
+                        heatIndex: 0,
+                        hri: 0,
+                        risk_label: rLevel,
+                        risk_level: rLabel
+                     };
+                 });
+             }
         }
 
         // Construct full District object
@@ -248,8 +245,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAssistant, isDarkMod
       }
   };
 
-  const highRiskCount = DISTRICTS_DATA.filter(d => d.riskLevel === RiskLevel.HIGH || d.riskLevel === RiskLevel.EXTREME).length;
-
   // Calculate average Risk Level (0-3 scale)
   const getRiskValue = (level: RiskLevel) => {
     switch (level) {
@@ -261,12 +256,91 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAssistant, isDarkMod
     }
   };
 
-  const totalRiskScore = DISTRICTS_DATA.reduce((acc, curr) => acc + getRiskValue(curr.riskLevel), 0);
-  const overallRiskLevel = Math.round(totalRiskScore / DISTRICTS_DATA.length);
+  // --- Derived State for KPIs (Dynamic based on selected state) ---
+  const currentDistrictsWithRisk = districts.map(d => {
+      const risk = todayRisk[d.id];
+      const uiRisk = riskLabelToUi(risk);
+      return { ...d, riskLevel: uiRisk.level, riskValue: getRiskValue(uiRisk.level) };
+  });
+
+  const highRiskCount = currentDistrictsWithRisk.filter(d => d.riskLevel === RiskLevel.HIGH || d.riskLevel === RiskLevel.EXTREME).length;
+
+  const totalRiskScore = currentDistrictsWithRisk.reduce((acc, d) => acc + d.riskValue, 0);
+  const overallRiskLevel = currentDistrictsWithRisk.length > 0 ? Math.round(totalRiskScore / currentDistrictsWithRisk.length) : 0;
+
+  // Map to full District type for components that need it (RiskMatrix, Report)
+  const mappedDistricts: District[] = currentDistrictsWithRisk.map(d => {
+      const risk = todayRisk[d.id];
+      // Simulate humidity/HRI consistent with risk level for visualization
+      const baseHumidity = 40 + (d.riskValue * 15) + (Math.random() * 10);
+      const baseHri = (d.riskValue * 2.5) + (Math.random() * 2);
+
+      return {
+          id: d.id,
+          name: d.name,
+          currentTemp: risk?.tmax_c || 30,
+          currentHumidity: Math.min(100, Math.round(baseHumidity)),
+          currentHri: Math.min(10, Number(baseHri.toFixed(1))),
+          riskLevel: d.riskLevel,
+          forecast: [],
+          vulnerability: d.vulnerability,
+          coordinates: d.coordinates
+      };
+  });
+
+  // --- Additional helpers & UI state for tiles and alert mock ---
+  const riskNumToLabel = (n: number) => {
+    switch (n) {
+      case 0: return { label: 'Low', color: 'green' };
+      case 1: return { label: 'Moderate', color: 'yellow' };
+      case 2: return { label: 'High', color: 'orange' };
+      case 3: return { label: 'Extreme', color: 'red' };
+      default: return { label: 'Unknown', color: 'gray' };
+    }
+  };
+
+  // Top critical districts (by risk) for quick view
+  const topCriticalDistricts = [...currentDistrictsWithRisk]
+      .sort((a, b) => b.riskValue - a.riskValue)
+      .slice(0, 3)
+      .map(d => d.name);
+
+  // Vulnerable population estimate: using population if available or default 1.5M
+  const estimatedVulnerable = currentDistrictsWithRisk.reduce((acc, d) => {
+      const pop = d.population || 1500000;
+      const avgVulPct = ((d.vulnerability.elderlyPopulation || 0) + (d.vulnerability.outdoorWorkers || 0) + (d.vulnerability.slumPopulation || 0)) / 3;
+      return acc + Math.round(pop * (avgVulPct / 100));
+  }, 0);
+
+  // Alert protocol mock state
+  const [alertModalOpen, setAlertModalOpen] = useState(false);
+  const [alertLogs, setAlertLogs] = useState<string[]>([]);
+  const [alertInProgress, setAlertInProgress] = useState(false);
+
+  const clearAlert = () => {
+    setAlertLogs([]);
+    setAlertInProgress(false);
+    setAlertModalOpen(false);
+  };
+
+  const initiateAlertProtocol = (districtName?: string) => {
+    setAlertModalOpen(true);
+    setAlertInProgress(true);
+    setAlertLogs([`Initiating alert protocol${districtName ? ` for ${districtName}` : ''}...`] );
+
+    // Simulated steps
+    setTimeout(() => setAlertLogs(l => [...l, 'Notifying local health authorities...']), 1200);
+    setTimeout(() => setAlertLogs(l => [...l, 'Sending SMS alerts to registered contacts...']), 2400);
+    setTimeout(() => setAlertLogs(l => [...l, 'Triggering community outreach and cooling centers...']), 3600);
+    setTimeout(() => setAlertLogs(l => [...l, 'All primary alerts dispatched. Monitoring responses...']), 4800);
+    setTimeout(() => setAlertInProgress(false), 5200);
+  };
+
+  // --- end helpers ---
 
   const handleGenerateReport = async () => {
     setGeneratingReport(true);
-    const result = await generateSituationReport(DISTRICTS_DATA);
+    const result = await generateSituationReport(mappedDistricts);
     setReport(result);
     setGeneratingReport(false);
   };
@@ -280,6 +354,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAssistant, isDarkMod
           <div>
             <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Critical Zones</p>
             <p className="text-2xl font-black text-red-500">{highRiskCount} <span className="text-sm text-zinc-400 font-medium">Districts</span></p>
+            <p className="text-xs text-zinc-400 mt-1">Top: {topCriticalDistricts.join(', ')}</p>
           </div>
           <div className="p-2.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl">
             <ShieldAlert size={20} />
@@ -289,7 +364,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAssistant, isDarkMod
         <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 flex items-center justify-between group hover:border-yellow-500/50 transition-colors">
           <div>
             <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Overall Risk Level</p>
-            <p className="text-2xl font-black text-yellow-500">Level {overallRiskLevel}</p>
+            <p className={`text-2xl font-black ${riskNumToLabel(overallRiskLevel).color === 'yellow' ? 'text-yellow-500' : riskNumToLabel(overallRiskLevel).color === 'red' ? 'text-red-500' : riskNumToLabel(overallRiskLevel).color === 'orange' ? 'text-orange-500' : 'text-green-500'}`}>Level {overallRiskLevel} <span className="text-sm text-zinc-400 font-medium">({riskNumToLabel(overallRiskLevel).label})</span></p>
+            <div className="flex gap-2 mt-2">
+                <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-green-500"></div><span className="text-[9px] text-zinc-400">Low</span></div>
+                <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-yellow-500"></div><span className="text-[9px] text-zinc-400">Mod</span></div>
+                <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div><span className="text-[9px] text-zinc-400">High</span></div>
+                <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-red-500"></div><span className="text-[9px] text-zinc-400">Ext</span></div>
+            </div>
           </div>
           <div className="p-2.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 rounded-xl">
             <Activity size={20} />
@@ -299,7 +380,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAssistant, isDarkMod
          <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
           <div>
             <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Vulnerable</p>
-            <p className="text-2xl font-black text-zinc-900 dark:text-white">2.4M</p>
+            <p className="text-2xl font-black text-zinc-900 dark:text-white">{estimatedVulnerable.toLocaleString()}</p>
+            <p className="text-xs text-zinc-400 mt-1">Estimated vulnerable individuals</p>
           </div>
           <div className="p-2.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-xl">
             <Users size={20} />
@@ -361,11 +443,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAssistant, isDarkMod
                         <div
                         key={d.id}
                         onClick={() => loadForecastForDistrict(d)}
-                        className={`p-3 rounded-xl cursor-pointer transition-all border ${
-                            selectedDistrict?.id === d.id
-                            ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600 shadow-inner'
-                            : 'border-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
-                        }`}
+                        className={"p-3 rounded-xl cursor-pointer transition-all border " + (selectedDistrict?.id === d.id ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600 shadow-inner' : 'border-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800/50')}
                         >
                         <div className="flex justify-between items-center mb-1">
                             <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100">{d.name}</span>
@@ -388,38 +466,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAssistant, isDarkMod
                 })
               )}
             </div>
-
-            {/* Risk Level Info Legend */}
-            <div className="p-3 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-900/30">
-                <div className="flex items-center gap-2 mb-2 text-xs font-bold text-zinc-500 uppercase">
-                    <Info size={12} /> Risk Levels
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-[10px]">
-                    <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                        <span className="text-zinc-600 dark:text-zinc-400">Level 0: Low</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
-                        <span className="text-zinc-600 dark:text-zinc-400">Level 1: Moderate</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                        <span className="text-zinc-600 dark:text-zinc-400">Level 2: High</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                        <span className="text-zinc-600 dark:text-zinc-400">Level 3: Extreme</span>
-                    </div>
-                </div>
-            </div>
           </div>
 
           {/* Mini Matrix Preview */}
           <div className="h-56 lg:h-64 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 shrink-0 flex flex-col">
              <h3 className="font-bold text-zinc-700 dark:text-zinc-200 text-sm mb-2">Risk Matrix</h3>
              <div className="flex-1 rounded-lg overflow-hidden border border-zinc-100 dark:border-zinc-800">
-               <RiskMatrix data={DISTRICTS_DATA} onSelectDistrict={setSelectedDistrict} isDarkMode={isDarkMode} />
+               <RiskMatrix data={mappedDistricts} onSelectDistrict={setSelectedDistrict} isDarkMode={isDarkMode} />
              </div>
           </div>
         </div>
@@ -597,7 +650,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAssistant, isDarkMod
 
              {selectedDistrict && (
                 <div className="p-4 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
-                  <button className="w-full py-2.5 bg-zinc-900 dark:bg-white text-white dark:text-black rounded-xl text-sm font-bold hover:opacity-90 transition-opacity">
+                  <button className="w-full py-2.5 bg-zinc-900 dark:bg-white text-white dark:text-black rounded-xl text-sm font-bold hover:opacity-90 transition-opacity" onClick={() => initiateAlertProtocol(selectedDistrict.name)}>
                     Initiate Alert Protocol
                   </button>
                 </div>
@@ -606,6 +659,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAssistant, isDarkMod
 
         </div>
       </div>
+
+      {/* Alert Protocol Modal (Mockup) */}
+      {alertModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 w-11/12 md:w-2/3 lg:w-1/2 p-6">
+            <div className="flex justify-between items-start">
+              <h3 className="font-bold">Alert Protocol</h3>
+              <button onClick={clearAlert} className="text-zinc-400">Close</button>
+            </div>
+            <div className="mt-4 h-48 overflow-y-auto p-3 bg-zinc-50 dark:bg-zinc-800 rounded">
+              {alertLogs.map((l, i) => (
+                <div key={i} className={`text-sm py-1 ${i === alertLogs.length - 1 && alertInProgress ? 'font-medium' : 'text-zinc-600'}`}>{l}</div>
+              ))}
+              {alertLogs.length === 0 && <div className="text-sm text-zinc-400">No actions yet.</div>}
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={clearAlert} className="px-3 py-2 rounded bg-zinc-100 dark:bg-zinc-800">Dismiss</button>
+              <button onClick={() => { setAlertLogs([]); initiateAlertProtocol(); }} className="px-3 py-2 rounded bg-red-500 text-white">Re-run Mock</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
